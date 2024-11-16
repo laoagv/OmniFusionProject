@@ -6,5 +6,4 @@
 0.26.0
 __pycache__
 **/*.safetensors
-utils.py
 mainv2.py

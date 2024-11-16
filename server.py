@@ -38,6 +38,7 @@ clip = clip.to(device=DEVICE, dtype=torch.bfloat16)
 startTime = time.time()
 
 def gen_answer(model, tokenizer, clip, projection, query, special_embs, image=None):
+    torch.cuda.empty_cache()
     bad_words_ids = tokenizer(["\n", "</s>", ":"], add_special_tokens=False).input_ids + [[13]]
     gen_params = {
         "do_sample": False,

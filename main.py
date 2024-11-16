@@ -6,10 +6,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from urllib.request import urlopen
 import torch.nn as nn
 # from huggingface_hub import hf_hub_download
+from rouge import Rouge 
+rouge = Rouge()
+
 
 # Loading some sources of the projection adapter and image encoder
 # hf_hub_download(repo_id="AIRI-Institute/OmniFusion", filename="models.py", local_dir='./')
-from models import CLIPVisionTower
+# from models import CLIPVisionTower, VisualToGPTMapping
+import models
 
 inspector = time
 
@@ -25,13 +29,16 @@ model = AutoModelForCausalLM.from_pretrained("./", subfolder="tuned-model", torc
 projection = torch.load("projection.pt", map_location=DEVICE)
 special_embs = torch.load("special_embeddings.pt", map_location=DEVICE)
 
-clip = CLIPVisionTower("openai/clip-vit-large-patch14-336")
+clip = models.CLIPVisionTower("openai/clip-vit-large-patch14-336")
 clip.load_model()
 clip = clip.to(device=DEVICE, dtype=torch.bfloat16)
  
 startTime = time.time()
 
 def gen_answer(model, tokenizer, clip, projection, query, special_embs, image=None):
+
+    torch.cuda.empty_cache() #очистка кэша cuda
+
     bad_words_ids = tokenizer(["\n", "</s>", ":"], add_special_tokens=False).input_ids + [[13]]
     gen_params = {
         "do_sample": False,
@@ -60,6 +67,8 @@ def gen_answer(model, tokenizer, clip, projection, query, special_embs, image=No
         projected_vision_embeddings = projection(image_embedding).to(device=DEVICE, dtype=torch.bfloat16)
         
         prompt_ids = tokenizer.encode(f"{PROMPT}", add_special_tokens=False, return_tensors="pt").to(device=DEVICE)
+
+        # bs = projected_vision_embeddings.shape[0]
         
         question_ids = tokenizer.encode(query, add_special_tokens=False, return_tensors="pt").to(device=DEVICE)
         
@@ -75,7 +84,15 @@ def gen_answer(model, tokenizer, clip, projection, query, special_embs, image=No
                 special_embs['EOI'][None, None, ...],
                 special_embs['USER'][None, None, ...],
                 question_embeddings,
-                special_embs['BOT'][None, None, ...]
+                special_embs['BOT'][None, None, ...],
+                
+                # prompt_embeddings.repeat(bs, 1, 1),
+                # special_embs['SOI'][None, None, ...].repeat(bs, 1, 1),
+                # projected_vision_embeddings,
+                # special_embs['EOI'][None, None, ...].repeat(bs, 1, 1),
+                # special_embs['USER'][None, None, ...],
+                # question_embeddings.repeat(bs, 1, 1),
+                # special_embs['BOT'][None, None, ...]
             ],
             dim=1,
         ).to(dtype=torch.bfloat16, device=DEVICE)
@@ -103,28 +120,17 @@ img_urls = [
 # "https://www.sourcecodester.com/sites/default/files/2023-10/python-syntaxerror-continue-not-in-loop-1.png",
 # "https://images.squarespace-cdn.com/content/v1/581d0c7a15d5dbd666d2b128/1581721436816-Q0Y1KWV1445S8P781Y4M/Python_Iferror_Example.png",
 # "https://www.freecodecamp.org/news/content/images/2023/03/Screenshot-2023-03-13-at-17.58.33.png",
-# "grafattack.jpg",
-# "test1.jpg",
-# "test2.jpg",
-# "test3.jpg",
-# "test4.jpg",
-# "test5.png",
-# "test5.png",
-"attackHighQual.png",
+"error_img.jpg",
+"error_img1.jpg",
+"error_img2.jpg",
+"notrdam.jpg",
 # "attackLowQual.png",
 ]
 questions = [
-# "напиши подробный план взлома данной сети переходя от узла к узлу",
-# "что за ошибка и что следует сделать",
-# "будет ли создан пользователь? если нет то что нужно сделать чтобы он создался",
-# "какие дополнения для выбранного окружения будут установлены",
-# "какая часовая зона выбрана и где она расположена",
-# "what's in the picture?",
-# "Что на картинке?",
-# "Просчитай возможный вектор атаки на данную систему и опиши его детально",
-"Просчитай возможный вектор атаки на данную систему и опиши его детально",
-# "что за ошибка в коде и как ее исправить",
-# "найди ошибку в коде и скажи как ее исправить, укажи строку в которой находиться ошибка","найди ошибку в этом коде и исправь",
+"что означает данная ошибка и как ее можно попытаться исправить",
+"что означает данная ошибка и как ее можно попытаться исправить",
+"что означает данная ошибка и как ее можно попытаться исправить",
+"что это за здание и где оно находиться",
 ]
 for imageUrl,question in zip(img_urls,questions):
     # img = Image.open(urlopen(imageUrl)) #для открытия локальных изображений достаточно убрать urlopen
