@@ -127,7 +127,7 @@ async def echo(websocket):
 
 async def main():
     print("server run")
-    async with serve(echo, "localhost", 8765):
+    async with serve(echo, "26.184.252.243", 8765):
         await asyncio.get_running_loop().create_future()  # run forever
 
 asyncio.run(main())

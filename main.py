@@ -19,7 +19,7 @@ inspector = time
 
 DEVICE = "cuda:0"
 # DEVICE = "cpu"
-PROMPT = "Вы помошник, который прекрасно и подробно описывает изображения и отвечает на вопросы по ним. При описании изображения укажите такие детали, как объекты, цвета, действия и общий контекст. После предоставления подробного описания будьте готовы ответить на конкретные вопросы, связанные с изображением. Если задан общий вопрос типа **Вопрос:** Что изображено на картинке?, то опишите все элементы изображения. Теперь опишите предоставленное изображение и будьте готовы ответить на любые вопросы о нем. Создайте более одного предложения."
+PROMPT = "Вы — эксперт по анализу изображений и визуальному контенту. Ваша задача — предоставлять подробные описания картинок и отвечать на вопросы о них. Вы должны учитывать все детали, включая контекст, объекты, действия, эмоции и любые другие важные аспекты. Ваш ответ должен быть максимально информативным и точным. Также важно поддерживать разговорный стиль общения, делая объяснения понятными и доступными для широкой аудитории. Вы можете работать как с русскими, так и с английскими изображениями и вопросами. Формат взаимодействия следующий: 1. Я предоставляю изображение и/или задаю вопрос. 2. Вы даете подробное описание изображения и/или отвечаете на мой вопрос. 3. Если нужно, я могу задать дополнительные вопросы или предоставить новую картинку. Пожалуйста, начните с описания изображения."
 
 tokenizer = AutoTokenizer.from_pretrained("./", subfolder="tokenizer", use_fast=False)
 model = AutoModelForCausalLM.from_pretrained("./", subfolder="tuned-model", torch_dtype=torch.bfloat16, device_map=DEVICE)
@@ -44,7 +44,7 @@ def gen_answer(model, tokenizer, clip, projection, query, special_embs, image=No
         "do_sample": False,
         "max_new_tokens": 500,
         "early_stopping": False,
-        "num_beams": 1,
+        "num_beams": 3,
         "repetition_penalty": 1.0,
         "remove_invalid_values": True,
         "eos_token_id": 2,
@@ -53,7 +53,7 @@ def gen_answer(model, tokenizer, clip, projection, query, special_embs, image=No
         "use_cache": True,
         "no_repeat_ngram_size": 4,
         "bad_words_ids": bad_words_ids,
-        "num_return_sequences": 1,
+        "num_return_sequences": 3,
         # "max_length": 300,
     }
 
@@ -96,12 +96,11 @@ def gen_answer(model, tokenizer, clip, projection, query, special_embs, image=No
             ],
             dim=1,
         ).to(dtype=torch.bfloat16, device=DEVICE)
-        
         out = model.generate(inputs_embeds=embeddings, **gen_params)
         
-    out = out[:, 1:]
-    generated_texts = tokenizer.batch_decode(out)[0]
-    # generated_texts = tokenizer.batch_decode(out)[:6]
+    out = out[:, 0:]
+    # generated_texts = tokenizer.batch_decode(out)[0]
+    generated_texts = tokenizer.batch_decode(out)[:3]
 
     print(time.time()-startTime)
     print(10)
@@ -120,10 +119,15 @@ img_urls = [
 # "https://www.sourcecodester.com/sites/default/files/2023-10/python-syntaxerror-continue-not-in-loop-1.png",
 # "https://images.squarespace-cdn.com/content/v1/581d0c7a15d5dbd666d2b128/1581721436816-Q0Y1KWV1445S8P781Y4M/Python_Iferror_Example.png",
 # "https://www.freecodecamp.org/news/content/images/2023/03/Screenshot-2023-03-13-at-17.58.33.png",
-"error_img.jpg",
-"error_img1.jpg",
-"error_img2.jpg",
-"notrdam.jpg",
+"test1.jpeg",
+"test2.jpg",
+"test3.png",
+"test4.jpeg",
+"test5.jpg",
+"test6.jpg",
+"test7.jpg",
+# "architecture2.png"
+
 # "attackLowQual.png",
 ]
 questions = [
@@ -132,7 +136,8 @@ questions = [
 "что означает данная ошибка и как ее можно попытаться исправить",
 "что это за здание и где оно находиться",
 ]
-for imageUrl,question in zip(img_urls,questions):
+question = "какие ГОСТ на этом изображении?"
+for imageUrl in img_urls:
     # img = Image.open(urlopen(imageUrl)) #для открытия локальных изображений достаточно убрать urlopen
     img = Image.open(imageUrl)
     answer = gen_answer(

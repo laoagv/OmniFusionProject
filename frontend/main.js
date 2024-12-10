@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function(){
 	const messageInputBtn = document.querySelector('[name=send_message_button]')
 	const fileInput = document.querySelector('[name=file_input]')
 
-	let websocketClient = new WebSocket("ws://localhost:8765");
+	let websocketClient = new WebSocket("ws://26.184.252.243:8765");
 	websocketClient.onopen = () =>{
 		messageInputBtn.onclick = () =>{
 			const reader = new FileReader();

@@ -1,9 +1,13 @@
 *.png
 *.img
 *.jpg
+*.jpeg
 *.pt
 0.26.0'
 0.26.0
 __pycache__
 **/*.safetensors
 mainv2.py
+quantizer.py
+ocr.py
+*.txt
